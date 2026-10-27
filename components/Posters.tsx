@@ -67,11 +67,29 @@ export default function Posters() {
     void supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!active) return;
       if (sessionError) setError(`Could not check admin sign-in: ${sessionError.message}`);
-      setUser(data.session?.user ?? null);
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser?.email?.trim().toLowerCase() === adminEmail) {
+        setAdminAccess(true);
+        setAdminOpen(true);
+      } else if (!sessionUser) {
+        const hasAdminAccess = new URLSearchParams(window.location.search).get('admin') === '1';
+        setAdminAccess(hasAdminAccess);
+        setAdminOpen(hasAdminAccess);
+      }
       void refreshPosters();
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser?.email?.trim().toLowerCase() === adminEmail) {
+        setAdminAccess(true);
+        setAdminOpen(true);
+      } else if (!sessionUser) {
+        const hasAdminAccess = new URLSearchParams(window.location.search).get('admin') === '1';
+        setAdminAccess(hasAdminAccess);
+        setAdminOpen(hasAdminAccess);
+      }
     });
     return () => {
       active = false;
