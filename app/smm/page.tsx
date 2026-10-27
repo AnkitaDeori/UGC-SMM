@@ -9,20 +9,20 @@ export default function SmmPage() {
     <>
       <header className="mx-auto max-w-6xl px-5 pb-12 pt-16">
         <p className="font-mono text-xs text-ac">Social media / Strategy + creative</p>
-        <h1 className="page-title gradient-text mt-4 max-w-[22ch] font-display">Your brand has a story. Let’s make people stop and listen.</h1>
-        <p className="mt-6 max-w-[46ch] text-mu">Creative content, thoughtful planning, and a social presence that feels unmistakably yours.</p>
+        <h1 className="page-title ugc-page-heading gradient-text mt-4 max-w-[22ch] font-display">Your brand has a story. Let’s make people stop and listen.</h1>
+        <p className="mt-6 max-w-[46ch] text-sm text-mu">Creative content, thoughtful planning, and a social presence that feels unmistakably yours.</p>
       </header>
 
-      <Pinned id="services" title="What I can do" intro="Seven areas, mixed and matched to your goals." panel={false}>
+      <Pinned id="services" title="What I can do" intro="Seven areas, mixed and matched to your goals." panel={false} titleClassName="about-section-heading">
         <div className={grid}>{smmServices.map((s) => <Item key={s.title} {...s} />)}</div>
       </Pinned>
-      <Pinned id="projects" title="Concept projects" intro="Fictional brands, made to show process. No clients, no results claimed." panel={false}>
+      <Pinned id="projects" title="Concept projects" intro="Fictional brands, made to show process. No clients, no results claimed." panel={false} titleClassName="about-section-heading">
         <CaseStudies items={cases} />
       </Pinned>
-      <Pinned id="posters" title="Poster gallery" intro="Tap a poster to enlarge it." panel={false}>
+      <Pinned id="posters" title="Poster gallery" intro="Tap a poster to enlarge it." panel={false} titleClassName="about-section-heading">
         <Posters />
       </Pinned>
-      <Pinned id="kit" title="The Social Media Starter Kit" intro="Everything your brand needs to begin showing up online with more clarity and consistency." panel={false}>
+      <Pinned id="kit" title="The Social Media Starter Kit" intro="Everything your brand needs to begin showing up online with more clarity and consistency." panel={false} titleClassName="about-section-heading">
         <div className={grid}>
           {tiers.map((t) => (
             <Item key={t.name} title={t.name}>

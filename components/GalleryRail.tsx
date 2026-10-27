@@ -50,7 +50,7 @@ export default function GalleryRail({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-2xl text-ac md:text-3xl">{label}</h2>
+        <h2 className="section-heading about-section-heading gradient-text font-display">{label}</h2>
         <div className="flex items-center gap-4">
           {isAdmin && (
             <>
