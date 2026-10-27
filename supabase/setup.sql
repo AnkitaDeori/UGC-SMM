@@ -23,7 +23,7 @@ on storage.objects for insert
 to authenticated
 with check (
   bucket_id = 'portfolio-media'
-  and lower(auth.jwt() ->> 'email') = lower('REPLACE_WITH_ADMIN_EMAIL')
+  and lower(auth.jwt() ->> 'email') = lower('deoriankita2004@gmail.com')
 );
 
 drop policy if exists "Configured admin can update portfolio media" on storage.objects;
@@ -32,11 +32,11 @@ on storage.objects for update
 to authenticated
 using (
   bucket_id = 'portfolio-media'
-  and lower(auth.jwt() ->> 'email') = lower('REPLACE_WITH_ADMIN_EMAIL')
+  and lower(auth.jwt() ->> 'email') = lower('deoriankita2004@gmail.com')
 )
 with check (
   bucket_id = 'portfolio-media'
-  and lower(auth.jwt() ->> 'email') = lower('REPLACE_WITH_ADMIN_EMAIL')
+  and lower(auth.jwt() ->> 'email') = lower('deoriankita2004@gmail.com')
 );
 
 drop policy if exists "Configured admin can delete portfolio media" on storage.objects;
@@ -45,7 +45,7 @@ on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'portfolio-media'
-  and lower(auth.jwt() ->> 'email') = lower('REPLACE_WITH_ADMIN_EMAIL')
+  and lower(auth.jwt() ->> 'email') = lower('deoriankita2004@gmail.com')
 );
 
 create table if not exists public.portfolio_media (
@@ -78,7 +78,7 @@ create policy "Configured admin can add portfolio media details"
 on public.portfolio_media for insert
 to authenticated
 with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
 
 drop policy if exists "Configured admin can edit portfolio media details" on public.portfolio_media;
@@ -86,10 +86,10 @@ create policy "Configured admin can edit portfolio media details"
 on public.portfolio_media for update
 to authenticated
 using (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 )
 with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
 
 drop policy if exists "Configured admin can delete portfolio media details" on public.portfolio_media;
@@ -97,7 +97,7 @@ create policy "Configured admin can delete portfolio media details"
 on public.portfolio_media for delete
 to authenticated
 using (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
 
 create table if not exists public.portfolio_posters (
@@ -128,7 +128,7 @@ create policy "Configured admin can add portfolio posters"
 on public.portfolio_posters for insert
 to authenticated
 with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
 
 drop policy if exists "Configured admin can edit portfolio posters" on public.portfolio_posters;
@@ -136,10 +136,10 @@ create policy "Configured admin can edit portfolio posters"
 on public.portfolio_posters for update
 to authenticated
 using (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 )
 with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
 
 drop policy if exists "Configured admin can delete portfolio posters" on public.portfolio_posters;
@@ -147,5 +147,5 @@ create policy "Configured admin can delete portfolio posters"
 on public.portfolio_posters for delete
 to authenticated
 using (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('REPLACE_WITH_ADMIN_EMAIL')
+  lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
