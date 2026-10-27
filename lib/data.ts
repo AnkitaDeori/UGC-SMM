@@ -11,7 +11,7 @@ export const whatIDo: Service[] = [
   { title: 'Social media management', text: 'Planning, creating and shaping a consistent online presence.' },
 ];
 export const interests = ['Beauty', 'Skincare', 'Fashion', 'Lifestyle', 'Storytelling', 'Digital creativity'];
-export const tools = ['Canva', 'CapCut', 'Adobe Express', 'AI tools', 'Add yours'];
+export const tools = ['Canva', 'CapCut', 'Adobe Express', 'AI tools', 'Edits'];
 
 export const ugcServices: (Service & { deliverable: string })[] = [
   { title: 'Product photography', text: 'Styled stills of your product.', deliverable: 'Photo set' },

@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import Gallery from '@/components/Gallery';
-import ContactSection from '@/components/ContactSection';
-import { Item, Pinned, Price, grid } from '@/components/ui';
+import { ContactSection, Gallery, Item, Pinned, Price, grid } from '@/components';
 import { packages, ugcServices } from '@/lib/data';
 
 export const metadata: Metadata = { title: 'UGC' };

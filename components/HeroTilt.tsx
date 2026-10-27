@@ -61,12 +61,12 @@ export default function HeroTilt({ panel = true }: { panel?: boolean }) {
             </span>
           ))}
         </h1>
-        <p className="mx-auto my-6 max-w-[34ch] text-xl">I turn ideas into content people want to stop scrolling for.</p>
+        <p className="mx-auto my-6 max-w-[34ch] text-base sm:text-lg">I turn ideas into content people want to stop scrolling for.</p>
         <div className="flex flex-wrap justify-center gap-x-10 gap-y-3">
-          <Link href="/ugc" className="cta text-base md:text-lg">Explore my work</Link>
-          <a href="#contact" className="cta text-base md:text-lg">Let’s collaborate</a>
+          <Link href="/ugc" className="cta hero-cta">Explore my work</Link>
+          <a href="#contact" className="cta hero-cta">Let’s collaborate</a>
         </div>
-        <p className="mt-6 font-mono text-xs text-mu">● Open for projects (edit availability here)</p>
+        <p className="mt-6 font-mono text-xs text-mu">● Open for projects</p>
       </div>
       <p className="absolute inset-x-0 bottom-4 animate-bob font-mono text-xs text-mu">scroll ↓</p>
     </section>

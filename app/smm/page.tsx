@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import ContactSection from '@/components/ContactSection';
-import { CaseStudies, Posters } from '@/components/Modals';
-import { Item, Pinned, Price, grid } from '@/components/ui';
+import { CaseStudies, ContactSection, Item, Pinned, Posters, Price, grid } from '@/components';
 import { cases, smmServices, tiers } from '@/lib/data';
 
 export const metadata: Metadata = { title: 'Social media management' };

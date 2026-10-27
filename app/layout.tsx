@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Navbar, { Footer } from '@/components/Navbar';
+import { Footer, Navbar } from '@/components';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -7,8 +7,7 @@ export const metadata: Metadata = {
   description: 'Content creation, UGC and social media management by Ankita Deori.',
 };
 
-// Sets the theme before first paint (saved choice, else OS preference) to avoid a flash or hydration mismatch.
-const themeScript = `(function(){try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}})()`;
+const themeScript = `document.documentElement.dataset.theme='dark'`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

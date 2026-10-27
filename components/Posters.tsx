@@ -1,81 +1,23 @@
 'use client';
-import { ReactNode, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { CaseStudy, Poster } from '@/lib/data';
+import type { Poster } from '@/lib/data';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
-import { Item, grid } from './ui';
+import Modal from './Modal';
+import PosterArt from './PosterArt';
 
 interface ManagedPoster extends Poster {
   id: string;
 }
 
 const adminEmail = process.env.NEXT_PUBLIC_SUPABASE_ADMIN_EMAIL?.trim().toLowerCase() ?? '';
-
-function Modal({ open, onClose, label, children }: { open: boolean; onClose: () => void; label: string; children: ReactNode }) {
-  const r = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = r.current;
-    if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
-  }, [open]);
-  return (
-    <dialog ref={r} aria-label={label} onClose={onClose} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="m-auto w-[min(42rem,92vw)] rounded-3xl bg-bg p-8 text-tx shadow-2xl backdrop:bg-black/60">
-      <button type="button" onClick={onClose} className="ulink float-right font-mono text-xs text-mu">Close ✕</button>
-      {children}
-    </dialog>
-  );
-}
-
-function PosterArt({ p, min }: { p: Poster; min: string }) {
-  return (
-    <div className="flex flex-col justify-between gap-8 rounded-2xl p-6 font-display" style={{ background: p.bg, color: p.fg, minHeight: min }}>
-      <span className="font-mono text-[11px]">{p.brand || 'Brand'} · {p.kind || 'Poster'}</span>
-      <b className="text-3xl font-normal leading-none">{p.line}</b>
-      <div className="flex items-end justify-between gap-3">
-        <span className="max-w-[24ch] font-sans text-sm">{p.details}</span>
-        <i className="block h-12 w-12 shrink-0 rounded-full" style={{ background: p.fg }} />
-      </div>
-    </div>
-  );
-}
-
-export function CaseStudies({ items }: { items: CaseStudy[] }) {
-  const [i, setI] = useState<number | null>(null);
-  const c = i === null ? null : items[i];
-  return (
-    <>
-      <div className={grid}>
-        {items.map((x, n) => (
-          <Item key={x.name} title={x.name} text={x.challenge} meta={`Concept project · ${x.cat}`}>
-            <button type="button" onClick={() => setI(n)} className="cta text-base">Explore project</button>
-          </Item>
-        ))}
-      </div>
-      <Modal open={c !== null} onClose={() => setI(null)} label="Concept project details">
-        {c && (
-          <div className="space-y-3">
-            <p className="font-mono text-xs text-ac">Concept project · spec work for a fictional brand</p>
-            <h2 className="font-display text-4xl text-ac">{c.name}</h2>
-            <p><b>Creative challenge.</b> {c.challenge}</p>
-            <p><b>Content direction.</b> {c.direction}</p>
-            <p><b>Deliverables.</b> {c.deliverables}</p>
-            <PosterArt p={{ kind: '', brand: c.name, line: 'Mockup placeholder: add real visuals', bg: 'rgb(var(--ac))', fg: 'rgb(var(--bg))' }} min="10rem" />
-            <p className="font-mono text-xs text-mu">No client, no results claimed.</p>
-          </div>
-        )}
-      </Modal>
-    </>
-  );
-}
-
-export function Posters() {
+export default function Posters() {
   const [user, setUser] = useState<User | null>(null);
   const [posters, setPosters] = useState<ManagedPoster[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminAccess, setAdminAccess] = useState(false);
   const [selected, setSelected] = useState<ManagedPoster | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [kind, setKind] = useState('');
@@ -88,6 +30,12 @@ export function Posters() {
   const [error, setError] = useState('');
 
   const isAdmin = !!adminEmail && user?.email?.trim().toLowerCase() === adminEmail;
+
+  useEffect(() => {
+    const hasAdminAccess = new URLSearchParams(window.location.search).get('admin') === '1';
+    setAdminAccess(hasAdminAccess);
+    setAdminOpen(hasAdminAccess);
+  }, []);
 
   const refreshPosters = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();
@@ -215,7 +163,7 @@ export function Posters() {
     setStatus('');
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email: adminEmail,
-      options: { emailRedirectTo: `${window.location.origin}/smm` },
+      options: { emailRedirectTo: `${window.location.origin}/smm?admin=1` },
     });
     setBusy(false);
     if (signInError) setError(`Could not send the sign-in link: ${signInError.message}`);
@@ -237,11 +185,13 @@ export function Posters() {
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p className="font-mono text-xs text-mu">{loading ? 'Loading posters…' : `${posters.length} poster${posters.length === 1 ? '' : 's'}`}</p>
-        <button type="button" className="ulink font-mono text-xs text-ac" aria-expanded={adminOpen} onClick={() => setAdminOpen((open) => !open)}>
-          {adminOpen ? 'Close admin' : 'Admin'}
-        </button>
+        {(adminAccess || isAdmin) && (
+          <button type="button" className="ulink font-mono text-xs text-ac" aria-expanded={adminOpen} onClick={() => setAdminOpen((open) => !open)}>
+            {adminOpen ? 'Close admin' : 'Admin tools'}
+          </button>
+        )}
       </div>
-      {adminOpen && (
+      {adminOpen && (adminAccess || isAdmin) && (
         <div className="mb-6 space-y-4 rounded-2xl border border-ac/15 bg-soft/50 p-5">
           {isAdmin ? (
             <>
@@ -295,7 +245,7 @@ export function Posters() {
           {posters.map((poster, n) => (
             <article key={poster.id} className="relative mb-4 break-inside-avoid">
               <button type="button" onClick={() => setSelected(poster)} aria-label={`Enlarge poster: ${poster.kind}`} className="block w-full text-left transition duration-300 hover:-rotate-1 hover:scale-[1.03]">
-                <PosterArt p={poster} min={`${11 + (n % 3) * 4}rem`} />
+                <PosterArt poster={poster} minHeight={`${11 + (n % 3) * 4}rem`} />
               </button>
               {isAdmin && (
                 <div className="absolute right-2 top-2 z-10 flex gap-2 rounded-full bg-bg/95 p-1 shadow">
@@ -313,7 +263,7 @@ export function Posters() {
         {selected && (
           <>
             <h2 className="mb-4 font-display text-xl text-ac">{selected.kind} poster</h2>
-            <PosterArt p={selected} min="60vh" />
+            <PosterArt poster={selected} minHeight="60vh" />
           </>
         )}
       </Modal>

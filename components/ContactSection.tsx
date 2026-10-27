@@ -32,7 +32,7 @@ export default function ContactSection() {
   return (
     <section id="contact" className="mx-auto grid max-w-6xl gap-8 px-5 py-16 md:grid-cols-[1.1fr_.9fr]">
       <div>
-        <h2 className="section-heading gradient-text font-display">Have a project in mind? Let’s make it real.</h2>
+        <h2 className="section-heading contact-heading gradient-text font-display">Have a project in mind? Let’s make it real.</h2>
         <p className="mt-4 max-w-[36ch] text-mu">This is a demo form: nothing is sent until a form service is connected.</p>
       </div>
       <form onSubmit={submit} noValidate className="contact-form grid w-full max-w-sm gap-3">

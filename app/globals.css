@@ -3,19 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --bg: 250 247 255;
-  --soft: 255 255 255;
-  --ac: 119 67 220;
-  --tx: 34 27 49;
-  --mu: 103 94 120;
-  --glow-one: 255 137 170;
-  --glow-two: 255 196 106;
-  --glow-three: 126 213 224;
-  --f-display: 'Archivo Black';
-  --f-body: 'DM Sans';
-  --f-mono: 'Space Mono';
-}
-:root[data-theme='dark'] {
+  color-scheme: dark;
   --bg: 17 15 27;
   --soft: 34 29 49;
   --ac: 198 157 255;
@@ -24,6 +12,9 @@
   --glow-one: 179 115 230;
   --glow-two: 255 156 171;
   --glow-three: 75 190 205;
+  --f-display: 'Archivo Black';
+  --f-body: 'DM Sans';
+  --f-mono: 'Space Mono';
 }
 
 @layer base {
@@ -131,17 +122,27 @@
     line-height: 1;
     letter-spacing: -.04em;
   }
+  .hero-cta {
+    font-family: var(--f-body), sans-serif;
+    font-size: .9rem;
+    font-weight: 400;
+  }
+  @media (min-width: 768px) {
+    .hero-cta { font-size: 1rem; }
+  }
   .card-heading {
-    font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+    font-size: clamp(1 rem, 1.5vw, 1.2rem);
     line-height: 1.15;
     letter-spacing: -.02em;
   }
   .word-chip {
+    font-family: var(--f-body), sans-serif;
     border: 1px solid rgb(var(--ac) / .14);
     border-radius: 9999px;
     background: linear-gradient(110deg, rgb(var(--soft) / .75), rgb(var(--glow-one) / .12));
     padding: .3rem .65rem;
     font-size: clamp(.72rem, 1vw, .88rem);
+    font-weight: 400;
     line-height: 1.2;
   }
   .hero-orb { z-index: 0; }
@@ -233,4 +234,13 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .reveal { opacity: 1 !important; }
+}
+
+.about-section-heading,
+.contact-heading {
+  font-family: var(--f-body), sans-serif;
+font-size: clamp(1.25rem, 2.2vw, 2rem);
+font-weight: 600;
+line-height: 1.12;
+letter-spacing: -.035em;
 }
