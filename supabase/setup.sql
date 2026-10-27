@@ -149,3 +149,24 @@ to authenticated
 using (
   lower(coalesce(auth.jwt() ->> 'email', '')) = lower('deoriankita2004@gmail.com')
 );
+
+create table if not exists public.portfolio_enquiries (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(trim(name)) between 1 and 120),
+  email text not null check (char_length(trim(email)) between 3 and 254),
+  project_type text not null check (project_type in ('UGC', 'Social media management', 'Content creation', 'Other')),
+  budget text not null check (budget in ('Not sure yet', 'Starter', 'Mid', 'Large')),
+  details text not null check (char_length(trim(details)) between 10 and 2000),
+  created_at timestamptz not null default now()
+);
+
+alter table public.portfolio_enquiries enable row level security;
+
+revoke all on public.portfolio_enquiries from anon, authenticated;
+grant insert on public.portfolio_enquiries to anon, authenticated;
+
+drop policy if exists "Visitors can submit portfolio enquiries" on public.portfolio_enquiries;
+create policy "Visitors can submit portfolio enquiries"
+on public.portfolio_enquiries for insert
+to anon, authenticated
+with check (true);

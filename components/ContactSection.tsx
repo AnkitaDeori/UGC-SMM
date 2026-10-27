@@ -1,5 +1,6 @@
 'use client';
 import { FormEvent, useState } from 'react';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
 
 type Errs = Partial<Record<'name' | 'email' | 'details', string>>;
 const fc = 'rounded-xl bg-soft px-3 py-2 font-sans text-sm text-tx outline-none focus-visible:ring-2 focus-visible:ring-ac';
@@ -9,7 +10,7 @@ export default function ContactSection() {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
@@ -20,20 +21,42 @@ export default function ContactSection() {
     if (v('details').length < 10) x.details = 'Describe your project in at least 10 characters.';
     setErrs(x);
     if (Object.keys(x).length) { setStatus('Fix the highlighted fields.'); return; }
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setStatus('The enquiry form is unavailable right now. Please email deoriankita2004@gmail.com directly.');
+      return;
+    }
+
     setBusy(true);
-    setStatus('Checking…');
-    setTimeout(() => {
-      setBusy(false);
-      setStatus('Demo only: your message was validated but NOT sent. Connect a form service in this component to go live.');
+    setStatus('Sending your enquiry…');
+    try {
+      const { error } = await supabase.from('portfolio_enquiries').insert({
+        name: v('name'),
+        email: v('email'),
+        project_type: v('type'),
+        budget: v('budget'),
+        details: v('details'),
+      });
+      if (error) {
+        setStatus(`Could not save your enquiry: ${error.message}. Please email deoriankita2004@gmail.com directly.`);
+        return;
+      }
       form.reset();
-    }, 800);
+      setErrs({});
+      setStatus('Your enquiry has been received. I’ll follow up using the email address you provided.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An unexpected network error occurred.';
+      setStatus(`Could not save your enquiry: ${message}. Please email deoriankita2004@gmail.com directly.`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <section id="contact" className="mx-auto grid max-w-6xl gap-8 px-5 py-16 md:grid-cols-[1.1fr_.9fr]">
       <div>
         <h2 className="section-heading contact-heading gradient-text font-display">Have a project in mind? Let’s make it real.</h2>
-        <p className="mt-4 max-w-[36ch] text-mu">This is a demo form: nothing is sent until a form service is connected.</p>
+        <p className="mt-4 max-w-[36ch] text-mu">Your enquiry is stored securely, and I’ll follow up using the email address you provide.</p>
       </div>
       <form onSubmit={submit} noValidate className="contact-form grid w-full max-w-sm gap-3">
         <label className="grid gap-1 font-mono text-xs">Name
@@ -54,7 +77,7 @@ export default function ContactSection() {
           <textarea name="details" rows={3} aria-invalid={!!errs.details} aria-describedby="e-details" className={fc} />
           <span id="e-details" className="min-h-4 text-ac">{errs.details}</span>
         </label>
-        <button type="submit" disabled={busy} className="cta justify-self-start disabled:opacity-50">Send inquiry</button>
+        <button type="submit" disabled={busy} className="cta justify-self-start disabled:opacity-50">{busy ? 'Sending…' : 'Send inquiry'}</button>
         <p role="status" className="font-mono text-xs text-mu">{status}</p>
       </form>
     </section>
