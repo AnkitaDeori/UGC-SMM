@@ -156,17 +156,51 @@ create table if not exists public.portfolio_enquiries (
   email text not null check (char_length(trim(email)) between 3 and 254),
   project_type text not null check (project_type in ('UGC', 'Social media management', 'Content creation', 'Other')),
   budget text not null check (budget in ('Not sure yet', 'Starter', 'Mid', 'Large')),
-  details text not null check (char_length(trim(details)) between 10 and 2000),
+  project_description text not null check (char_length(trim(project_description)) between 10 and 2000),
   created_at timestamptz not null default now()
 );
+
+alter table public.portfolio_enquiries
+  add column if not exists id uuid not null default gen_random_uuid(),
+  add column if not exists name text not null default '',
+  add column if not exists email text not null default '',
+  add column if not exists project_type text not null default 'Other',
+  add column if not exists budget text not null default 'Not sure yet'
+  check (budget in ('Not sure yet', 'Starter', 'Mid', 'Large')),
+  add column if not exists project_description text not null default '',
+  add column if not exists created_at timestamptz not null default now();
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'portfolio_enquiries'
+      and column_name = 'details'
+  ) then
+    execute $migration$
+      update public.portfolio_enquiries
+      set project_description = details
+      where project_description = '' and details <> ''
+    $migration$;
+  end if;
+end
+$$;
 
 alter table public.portfolio_enquiries enable row level security;
 
 revoke all on public.portfolio_enquiries from anon, authenticated;
-grant insert on public.portfolio_enquiries to anon, authenticated;
+grant insert on public.portfolio_enquiries to authenticated;
 
 drop policy if exists "Visitors can submit portfolio enquiries" on public.portfolio_enquiries;
-create policy "Visitors can submit portfolio enquiries"
+drop policy if exists "Verified users can submit portfolio enquiries" on public.portfolio_enquiries;
+create policy "Verified users can submit portfolio enquiries"
 on public.portfolio_enquiries for insert
-to anon, authenticated
-with check (true);
+to authenticated
+with check (
+  auth.uid() is not null
+  and lower(trim(email)) = lower(coalesce(auth.jwt() ->> 'email', ''))
+);
+
+notify pgrst, 'reload schema';
