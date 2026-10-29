@@ -1,4 +1,6 @@
-export const PORTRAIT_SRC = ''; // set to a real photo URL or /public path
+// Put your portrait in public/images/portraits/ and set this to its public path,
+// for example: '/images/portraits/portrait.jpg'.
+export const PORTRAIT_SRC = '/images/portraits/portrait1.jpg';
 
 export interface Service { title: string; text: string }
 export interface CaseStudy { name: string; cat: string; challenge: string; direction: string; deliverables: string }

@@ -14,9 +14,28 @@ const supportedImageTypes = new Set([
   'image/heic',
   'image/heif',
 ]);
+const imageTypeAliases: Record<string, string> = {
+  'image/jpg': 'image/jpeg',
+  'image/pjpeg': 'image/jpeg',
+  'image/heic-sequence': 'image/heic',
+  'image/heif-sequence': 'image/heif',
+  'image/x-heic': 'image/heic',
+  'image/x-heif': 'image/heif',
+};
+const imageExtensions: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+};
 
 function imageContentType(file: File) {
-  if (supportedImageTypes.has(file.type)) return file.type;
+  const reportedType = file.type.toLowerCase().split(';')[0];
+  const normalizedType = imageTypeAliases[reportedType] ?? reportedType;
+  if (supportedImageTypes.has(normalizedType)) return normalizedType;
   const extension = file.name.split('.').pop()?.toLowerCase();
   const fallbackTypes: Record<string, string> = {
     jpg: 'image/jpeg',
@@ -52,7 +71,14 @@ function isGalleryFile(name: string, kind: MediaKind) {
   return extensions.test(name);
 }
 
-async function createVideoPoster(file: File): Promise<Blob> {
+function photoUploadName(filename: string, contentType: string) {
+  const extension = imageExtensions[contentType];
+  const baseName = filename.replace(/\.[^.]+$/, '');
+  const safeBaseName = baseName.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(-110);
+  return `${safeBaseName || 'photo'}.${extension}`;
+}
+
+async function createVideoPoster(file: File, frameTime: number): Promise<Blob> {
   const objectUrl = URL.createObjectURL(file);
   const video = document.createElement('video');
   video.muted = true;
@@ -103,12 +129,12 @@ async function createVideoPoster(file: File): Promise<Blob> {
       video.onerror = () => finish(undefined, new Error('This browser cannot read this video format for a cover image.'));
       video.onloadedmetadata = () => {
         if (Number.isFinite(video.duration) && video.duration > 0) {
-          video.currentTime = Math.min(0.1, video.duration / 2);
+          video.currentTime = Math.min(Math.max(frameTime, 0), Math.max(0, video.duration - 0.05));
         }
       };
       video.onseeked = captureFrame;
       video.onloadeddata = () => {
-        if (!Number.isFinite(video.duration) || video.duration === 0) captureFrame();
+        if (!Number.isFinite(video.duration) || video.duration === 0 || frameTime === 0) captureFrame();
       };
       video.src = objectUrl;
       video.load();
@@ -132,6 +158,7 @@ export default function useGalleryController() {
   const [busy, setBusy] = useState<GalleryBusy>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedKind, setSelectedKind] = useState<MediaKind | null>(null);
+  const [selectedPosterTime, setSelectedPosterTime] = useState<number | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
   const [editingPath, setEditingPath] = useState<string | null>(null);
@@ -315,6 +342,7 @@ export default function useGalleryController() {
     }
     setSelectedFile(file);
     setSelectedKind(kind);
+    setSelectedPosterTime(null);
     setDraftTitle(titleFor(file.name));
     setDraftDescription('');
     setAdminOpen(true);
@@ -327,12 +355,21 @@ export default function useGalleryController() {
     const kind = selectedKind;
     if (!file || !kind) return;
     const supabase = getSupabaseBrowserClient();
+    if (kind === 'video' && selectedPosterTime === null) {
+      setError('Choose a frame from the video to use as its cover image.');
+      return;
+    }
     if (!draftTitle.trim()) {
       setError('Add a title before uploading.');
       return;
     }
     if (!supabase || !isAdmin) {
       setError('Sign in with the configured admin account before uploading.');
+      return;
+    }
+    const photoType = kind === 'photo' ? imageContentType(file) : '';
+    if (kind === 'photo' && !photoType) {
+      setError(`Could not identify the image format for "${file.name}". Choose a JPG, PNG, WebP, GIF, AVIF, HEIC, or HEIF photo.`);
       return;
     }
 
@@ -342,7 +379,7 @@ export default function useGalleryController() {
     let posterBlob: Blob | null = null;
     if (kind === 'video') {
       try {
-        posterBlob = await createVideoPoster(file);
+        posterBlob = await createVideoPoster(file, selectedPosterTime ?? 0);
       } catch (posterError) {
         setBusy(null);
         const reason = posterError instanceof Error ? ` ${posterError.message}` : '';
@@ -351,7 +388,9 @@ export default function useGalleryController() {
       }
     }
 
-    const safeName = file.name.replace(/[^\w.-]+/g, '-').slice(-120) || `upload-${Date.now()}`;
+    const safeName = kind === 'photo'
+      ? photoUploadName(file.name, photoType)
+      : file.name.replace(/[^\w.-]+/g, '-').slice(-120) || `upload-${Date.now()}`;
     const mediaId = crypto.randomUUID();
     const path = `${kind === 'video' ? 'videos' : 'photos'}/${mediaId}-${safeName}`;
     const posterPath = posterBlob ? `posters/${mediaId}.jpg` : null;
@@ -367,21 +406,29 @@ export default function useGalleryController() {
       }
     }
 
-    const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, {
-      contentType: kind === 'photo' ? imageContentType(file) : file.type,
-      metadata: {
-        title: draftTitle.trim(),
-        description: draftDescription.trim(),
-        ...(posterPath ? { poster_path: posterPath } : {}),
-      },
-      upsert: false,
-    });
+    let uploadError: Error | null = null;
+    try {
+      ({ error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, {
+        contentType: kind === 'photo' ? photoType : file.type,
+        metadata: {
+          title: draftTitle.trim(),
+          description: draftDescription.trim(),
+          ...(posterPath ? { poster_path: posterPath } : {}),
+        },
+        upsert: false,
+      }));
+    } catch (reason) {
+      uploadError = reason instanceof Error ? reason : new Error(String(reason));
+    }
     if (uploadError) {
       const { error: cleanupError } = posterPath
         ? await supabase.storage.from(MEDIA_BUCKET).remove([posterPath])
         : { error: null };
       setBusy(null);
-      setError(`Upload failed: ${uploadError.message}.${cleanupError ? ` Cover cleanup also failed: ${cleanupError.message}.` : ''} Check that the Storage policies in supabase/setup.sql are installed for the same admin email shown in .env.local, then sign out and sign in again.`);
+      const fileInfo = kind === 'photo'
+        ? ` File: ${file.name} (${photoType}, ${(file.size / (1024 * 1024)).toFixed(1)} MB).`
+        : '';
+      setError(`${kind === 'photo' ? 'Photo' : 'Video'} upload failed: ${uploadError.message}.${fileInfo}${cleanupError ? ` Cover cleanup also failed: ${cleanupError.message}.` : ''} Verify the bucket MIME types and admin Storage policy in supabase/setup.sql, run that SQL in the correct Supabase project, and sign in again with the configured admin email.`);
       return;
     }
     const uploadedPath = path;
@@ -409,6 +456,7 @@ export default function useGalleryController() {
       setBusy(null);
       setSelectedFile(null);
       setSelectedKind(null);
+      setSelectedPosterTime(null);
       setDraftTitle('');
       setDraftDescription('');
       await refreshMedia();
@@ -420,6 +468,7 @@ export default function useGalleryController() {
     setStatus(`${kind === 'video' ? 'Video' : 'Photo'} uploaded.`);
     setSelectedFile(null);
     setSelectedKind(null);
+    setSelectedPosterTime(null);
     setDraftTitle('');
     setDraftDescription('');
     await refreshMedia();
@@ -510,6 +559,7 @@ export default function useGalleryController() {
     busy,
     selectedFile,
     selectedKind,
+    selectedPosterTime,
     draftTitle,
     draftDescription,
     editingPath,
@@ -528,7 +578,9 @@ export default function useGalleryController() {
     cancelUpload: () => {
       setSelectedFile(null);
       setSelectedKind(null);
+      setSelectedPosterTime(null);
     },
+    selectPosterTime: setSelectedPosterTime,
     setDraftTitle,
     setDraftDescription,
     selectFile,

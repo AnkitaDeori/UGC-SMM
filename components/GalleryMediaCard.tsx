@@ -1,5 +1,7 @@
 'use client';
+import { useState } from 'react';
 import type { GalleryBusy, MediaKind, UploadedMedia } from './galleryTypes';
+import Modal from './Modal';
 
 interface GalleryMediaCardProps {
   media: UploadedMedia;
@@ -32,14 +34,36 @@ export default function GalleryMediaCard({
   onEditDescriptionChange,
   onCancelEditing,
 }: GalleryMediaCardProps) {
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
+
   return (
     <article className="ugc-card relative">
       <div className={`ugc-card-frame grid place-items-center${media.kind === 'video' ? ' ugc-card-frame-video' : ''}`}>
         {media.kind === 'video'
           ? <video src={media.url} poster={media.posterUrl ?? undefined} controls playsInline preload={media.posterUrl ? 'none' : 'metadata'} aria-label={media.title} className="h-full w-full object-contain" />
-          : /* eslint-disable-next-line @next/next/no-img-element */ <img src={media.url} alt={media.title} className="h-full w-full object-cover" />
+          : (
+            <button
+              type="button"
+              onClick={() => setPhotoPreviewOpen(true)}
+              aria-label={`Enlarge photo: ${media.title}`}
+              className="h-full w-full cursor-zoom-in"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={media.url} alt={media.title} className="h-full w-full object-cover" />
+            </button>
+          )
         }
       </div>
+      {media.kind === 'photo' && (
+        <Modal open={photoPreviewOpen} onClose={() => setPhotoPreviewOpen(false)} label={`Photo preview: ${media.title}`}>
+          <div className="clear-both">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={media.url} alt={media.title} className="mx-auto max-h-[75vh] w-full rounded-xl object-contain" />
+            <h2 className="mt-4 font-display text-xl text-ac">{media.title}</h2>
+            {media.description && <p className="mt-2 text-sm text-mu">{media.description}</p>}
+          </div>
+        </Modal>
+      )}
       {isAdmin && (
         <div className="absolute right-2 top-2 z-10 flex gap-2 rounded-full bg-bg/95 p-1 shadow">
           <button type="button" className="rounded-full bg-red-700 px-3 py-2 font-mono text-xs font-bold text-white hover:bg-red-800" disabled={busy !== null} onClick={() => onDelete(media)}>

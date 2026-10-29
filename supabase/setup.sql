@@ -112,9 +112,13 @@ create table if not exists public.portfolio_posters (
   details text not null default '' check (char_length(details) <= 240),
   bg text not null check (bg ~ '^#[0-9A-Fa-f]{6}$'),
   fg text not null check (fg ~ '^#[0-9A-Fa-f]{6}$'),
+  image_path text,
   created_at timestamptz not null default now(),
   created_by uuid references auth.users(id) on delete set null
 );
+
+alter table public.portfolio_posters
+  add column if not exists image_path text;
 
 alter table public.portfolio_posters enable row level security;
 

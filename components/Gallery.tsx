@@ -32,6 +32,7 @@ export default function Gallery() {
         busy={gallery.busy}
         selectedFile={gallery.selectedFile}
         selectedKind={gallery.selectedKind}
+        selectedPosterTime={gallery.selectedPosterTime}
         draftTitle={gallery.draftTitle}
         draftDescription={gallery.draftDescription}
         error={gallery.error}
@@ -43,6 +44,7 @@ export default function Gallery() {
         onCancelUpload={gallery.cancelUpload}
         onDraftTitleChange={gallery.setDraftTitle}
         onDraftDescriptionChange={gallery.setDraftDescription}
+        onSelectPosterTime={gallery.selectPosterTime}
       />
       <GalleryRail label="Videos" kind="video" entries={gallery.videos} railRef={gallery.videosRef} {...railProps} />
       <GalleryRail label="Photos" kind="photo" entries={gallery.photos} railRef={gallery.photosRef} {...railProps} />

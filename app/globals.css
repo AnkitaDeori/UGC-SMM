@@ -218,6 +218,11 @@
   .ugc-card-frame-video {
     aspect-ratio: 9 / 16;
   }
+  @media (max-width: 640px) {
+    .ugc-card:has(.ugc-card-frame-video) {
+      width: min(13rem, 68vw);
+    }
+  }
   .contact-form {
     padding-block: .25rem;
   }

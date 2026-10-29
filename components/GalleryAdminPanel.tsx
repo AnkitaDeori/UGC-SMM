@@ -1,6 +1,7 @@
 'use client';
 import type { User } from '@supabase/supabase-js';
 import type { GalleryBusy, MediaKind } from './galleryTypes';
+import VideoCoverPicker from './VideoCoverPicker';
 
 interface GalleryAdminPanelProps {
   adminAccess: boolean;
@@ -12,6 +13,7 @@ interface GalleryAdminPanelProps {
   busy: GalleryBusy;
   selectedFile: File | null;
   selectedKind: MediaKind | null;
+  selectedPosterTime: number | null;
   draftTitle: string;
   draftDescription: string;
   error: string;
@@ -23,6 +25,7 @@ interface GalleryAdminPanelProps {
   onCancelUpload: () => void;
   onDraftTitleChange: (value: string) => void;
   onDraftDescriptionChange: (value: string) => void;
+  onSelectPosterTime: (time: number) => void;
 }
 
 export default function GalleryAdminPanel({
@@ -35,6 +38,7 @@ export default function GalleryAdminPanel({
   busy,
   selectedFile,
   selectedKind,
+  selectedPosterTime,
   draftTitle,
   draftDescription,
   error,
@@ -46,6 +50,7 @@ export default function GalleryAdminPanel({
   onCancelUpload,
   onDraftTitleChange,
   onDraftDescriptionChange,
+  onSelectPosterTime,
 }: GalleryAdminPanelProps) {
   const controls = isAdmin ? (
     <div className="flex flex-wrap items-center gap-3">
@@ -89,6 +94,13 @@ export default function GalleryAdminPanel({
               }}
             >
               <p className="font-mono text-xs text-mu">Ready to upload: {selectedFile.name}</p>
+              {selectedKind === 'video' && (
+                <VideoCoverPicker
+                  file={selectedFile}
+                  selectedTime={selectedPosterTime}
+                  onSelectTime={onSelectPosterTime}
+                />
+              )}
               <label className="block space-y-1 text-xs text-mu">
                 Title
                 <input value={draftTitle} onChange={(event) => onDraftTitleChange(event.target.value)} maxLength={100} required className="w-full rounded-lg border border-ac/20 bg-bg px-3 py-2 text-sm text-tx" />
@@ -98,9 +110,12 @@ export default function GalleryAdminPanel({
                 <textarea value={draftDescription} onChange={(event) => onDraftDescriptionChange(event.target.value)} maxLength={500} rows={3} placeholder={`Add details about this ${selectedKind}…`} className="w-full rounded-lg border border-ac/20 bg-bg px-3 py-2 text-sm text-tx" />
               </label>
               <div className="flex gap-4">
-                <button type="submit" className="ulink font-mono text-xs text-ac" disabled={busy !== null}>{busy === selectedKind ? 'Uploading…' : `Upload ${selectedKind}`}</button>
+                <button type="submit" className="ulink font-mono text-xs text-ac" disabled={busy !== null || (selectedKind === 'video' && selectedPosterTime === null)}>{busy === selectedKind ? 'Uploading…' : `Upload ${selectedKind}`}</button>
                 <button type="button" className="ulink font-mono text-xs text-mu" disabled={busy !== null} onClick={onCancelUpload}>Cancel</button>
               </div>
+              {selectedKind === 'video' && selectedPosterTime === null && (
+                <p className="text-xs text-mu">Choose a cover frame before uploading.</p>
+              )}
             </form>
           )}
         </div>
