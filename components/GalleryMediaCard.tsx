@@ -36,7 +36,7 @@ export default function GalleryMediaCard({
     <article className="ugc-card relative">
       <div className={`ugc-card-frame grid place-items-center${media.kind === 'video' ? ' ugc-card-frame-video' : ''}`}>
         {media.kind === 'video'
-          ? <video src={media.url} poster={media.posterUrl ?? undefined} controls playsInline preload="none" aria-label={media.title} className="h-full w-full object-contain" />
+          ? <video src={media.url} poster={media.posterUrl ?? undefined} controls playsInline preload={media.posterUrl ? 'none' : 'metadata'} aria-label={media.title} className="h-full w-full object-contain" />
           : /* eslint-disable-next-line @next/next/no-img-element */ <img src={media.url} alt={media.title} className="h-full w-full object-cover" />
         }
       </div>

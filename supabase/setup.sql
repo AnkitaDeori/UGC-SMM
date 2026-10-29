@@ -4,7 +4,7 @@ values (
   'portfolio-media',
   true,
   104857600,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'video/mp4', 'video/webm', 'video/quicktime']
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif', 'video/mp4', 'video/webm', 'video/quicktime']
 )
 on conflict (id) do update
 set public = excluded.public,

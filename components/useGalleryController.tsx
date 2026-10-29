@@ -5,7 +5,15 @@ import { getSupabaseBrowserClient, MEDIA_BUCKET } from '@/lib/supabase';
 import type { GalleryEntry, GalleryBusy, MediaKind, UploadedMedia } from './galleryTypes';
 
 const adminEmail = process.env.NEXT_PUBLIC_SUPABASE_ADMIN_EMAIL?.trim().toLowerCase() ?? '';
-const supportedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+const supportedImageTypes = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
 
 function imageContentType(file: File) {
   if (supportedImageTypes.has(file.type)) return file.type;
@@ -17,6 +25,8 @@ function imageContentType(file: File) {
     webp: 'image/webp',
     gif: 'image/gif',
     avif: 'image/avif',
+    heic: 'image/heic',
+    heif: 'image/heif',
   };
   return extension ? fallbackTypes[extension] ?? '' : '';
 }
@@ -33,6 +43,13 @@ function mediaDetails(metadata: Record<string, unknown> | null | undefined, file
   const title = typeof metadata?.title === 'string' ? metadata.title.trim() : '';
   const description = typeof metadata?.description === 'string' ? metadata.description.trim() : '';
   return { title: title || titleFor(filename), description };
+}
+
+function isGalleryFile(name: string, kind: MediaKind) {
+  const extensions = kind === 'video'
+    ? /\.(mp4|m4v|mov|webm|ogv)$/i
+    : /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i;
+  return extensions.test(name);
 }
 
 async function createVideoPoster(file: File): Promise<Blob> {
@@ -154,7 +171,7 @@ export default function useGalleryController() {
     }
 
     const assets: UploadedMedia[] = [
-      ...(videos.data ?? []).filter((file) => file.id || file.created_at || file.metadata).map((file) => ({
+      ...(videos.data ?? []).filter((file) => isGalleryFile(file.name, 'video')).map((file) => ({
         kind: 'video' as const,
         name: file.name,
         path: `videos/${file.name}`,
@@ -162,7 +179,11 @@ export default function useGalleryController() {
         createdAt: file.created_at ?? '',
         ...(() => {
           const saved = savedDetails.get(`videos/${file.name}`);
-          const posterPath = typeof saved?.poster_path === 'string' ? saved.poster_path : null;
+          const posterPath = typeof saved?.poster_path === 'string'
+            ? saved.poster_path
+            : typeof file.metadata?.poster_path === 'string'
+              ? file.metadata.poster_path
+              : null;
           return saved
             ? {
                 title: saved.title,
@@ -170,10 +191,14 @@ export default function useGalleryController() {
                 posterPath,
                 posterUrl: posterPath ? supabase.storage.from(MEDIA_BUCKET).getPublicUrl(posterPath).data.publicUrl : null,
               }
-            : { ...mediaDetails(file.metadata, file.name), posterPath: null, posterUrl: null };
+            : {
+                ...mediaDetails(file.metadata, file.name),
+                posterPath,
+                posterUrl: posterPath ? supabase.storage.from(MEDIA_BUCKET).getPublicUrl(posterPath).data.publicUrl : null,
+              };
         })(),
       })),
-      ...(photos.data ?? []).filter((file) => file.id || file.created_at || file.metadata).map((file) => ({
+      ...(photos.data ?? []).filter((file) => isGalleryFile(file.name, 'photo')).map((file) => ({
         kind: 'photo' as const,
         name: file.name,
         path: `photos/${file.name}`,
@@ -281,7 +306,7 @@ export default function useGalleryController() {
     if (!validType) {
       setError(kind === 'video'
         ? 'Choose a valid video file.'
-        : 'Choose a JPG, PNG, WebP, GIF, or AVIF image. HEIC/HEIF photos must be converted to JPG before uploading.');
+        : 'Choose a JPG, PNG, WebP, GIF, AVIF, HEIC, or HEIF image.');
       return;
     }
     if (file.size > 100 * 1024 * 1024) {
@@ -344,7 +369,11 @@ export default function useGalleryController() {
 
     const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, {
       contentType: kind === 'photo' ? imageContentType(file) : file.type,
-      metadata: { title: draftTitle.trim(), description: draftDescription.trim() },
+      metadata: {
+        title: draftTitle.trim(),
+        description: draftDescription.trim(),
+        ...(posterPath ? { poster_path: posterPath } : {}),
+      },
       upsert: false,
     });
     if (uploadError) {
@@ -376,10 +405,14 @@ export default function useGalleryController() {
       created_by: user?.id ?? null,
     }, { onConflict: 'object_path' });
     if (detailsError) {
-      const cleanupPaths = [uploadedPath, ...(posterPath ? [posterPath] : [])];
-      const { error: cleanupError } = await supabase.storage.from(MEDIA_BUCKET).remove(cleanupPaths);
+      setUploaded((current) => [newMedia, ...current.filter((media) => media.path !== uploadedPath)]);
       setBusy(null);
-      setError(`The file uploaded but its details could not be saved: ${detailsError.message}.${cleanupError ? ` Cleanup also failed: ${cleanupError.message}.` : ' The incomplete upload was removed.'} Run the latest supabase/setup.sql and retry.`);
+      setSelectedFile(null);
+      setSelectedKind(null);
+      setDraftTitle('');
+      setDraftDescription('');
+      await refreshMedia();
+      setError(`${kind === 'video' ? 'Video' : 'Photo'} file uploaded, but its saved details could not be saved: ${detailsError.message}. The file remains in Storage and the gallery; run the latest supabase/setup.sql and check the admin table policy to save details.`);
       return;
     }
     setUploaded((current) => [newMedia, ...current.filter((media) => media.path !== uploadedPath)]);
