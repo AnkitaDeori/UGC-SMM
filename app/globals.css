@@ -197,11 +197,11 @@
     display: flex;
     gap: 1rem;
     overflow-x: auto;
+    overflow-y: hidden;
     padding: .5rem .25rem 1rem;
     scroll-snap-type: x mandatory;
     scrollbar-width: thin;
     scrollbar-color: rgb(var(--ac) / 45%) transparent;
-    touch-action: pan-x;
   }
   .ugc-card {
     width: min(17rem, 78vw);
@@ -214,6 +214,9 @@
     overflow: hidden;
     border-radius: 1.25rem;
     background: linear-gradient(145deg, rgb(var(--soft)), rgb(var(--glow-one) / .13) 55%, rgb(var(--glow-three) / .18));
+  }
+  .ugc-card-frame-video {
+    aspect-ratio: 9 / 16;
   }
   .contact-form {
     padding-block: .25rem;

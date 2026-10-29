@@ -34,9 +34,9 @@ export default function GalleryMediaCard({
 }: GalleryMediaCardProps) {
   return (
     <article className="ugc-card relative">
-      <div className="ugc-card-frame grid place-items-center">
+      <div className={`ugc-card-frame grid place-items-center${media.kind === 'video' ? ' ugc-card-frame-video' : ''}`}>
         {media.kind === 'video'
-          ? <video src={media.url} controls playsInline preload="metadata" aria-label={media.title} className="h-full w-full object-cover" />
+          ? <video src={media.url} poster={media.posterUrl ?? undefined} controls playsInline preload="none" aria-label={media.title} className="h-full w-full object-contain" />
           : /* eslint-disable-next-line @next/next/no-img-element */ <img src={media.url} alt={media.title} className="h-full w-full object-cover" />
         }
       </div>

@@ -6,6 +6,8 @@ export interface UploadedMedia {
   name: string;
   path: string;
   url: string;
+  posterPath: string | null;
+  posterUrl: string | null;
   createdAt: string;
   title: string;
   description: string;

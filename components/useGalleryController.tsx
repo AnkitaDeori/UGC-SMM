@@ -5,6 +5,21 @@ import { getSupabaseBrowserClient, MEDIA_BUCKET } from '@/lib/supabase';
 import type { GalleryEntry, GalleryBusy, MediaKind, UploadedMedia } from './galleryTypes';
 
 const adminEmail = process.env.NEXT_PUBLIC_SUPABASE_ADMIN_EMAIL?.trim().toLowerCase() ?? '';
+const supportedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+
+function imageContentType(file: File) {
+  if (supportedImageTypes.has(file.type)) return file.type;
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  const fallbackTypes: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    avif: 'image/avif',
+  };
+  return extension ? fallbackTypes[extension] ?? '' : '';
+}
 
 function titleFor(filename: string) {
   return filename
@@ -18,6 +33,75 @@ function mediaDetails(metadata: Record<string, unknown> | null | undefined, file
   const title = typeof metadata?.title === 'string' ? metadata.title.trim() : '';
   const description = typeof metadata?.description === 'string' ? metadata.description.trim() : '';
   return { title: title || titleFor(filename), description };
+}
+
+async function createVideoPoster(file: File): Promise<Blob> {
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+
+  try {
+    return await new Promise<Blob>((resolve, reject) => {
+      let settled = false;
+      const timeout = window.setTimeout(() => finish(undefined, new Error('Timed out while reading the video.')), 15000);
+
+      const finish = (blob?: Blob, error?: Error) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        video.onloadedmetadata = null;
+        video.onloadeddata = null;
+        video.onseeked = null;
+        video.onerror = null;
+        if (error) reject(error);
+        else if (blob) resolve(blob);
+        else reject(new Error('Could not create an image from this video.'));
+      };
+
+      const captureFrame = () => {
+        if (!video.videoWidth || !video.videoHeight) {
+          finish(undefined, new Error('The video has no readable frame.'));
+          return;
+        }
+
+        const scale = Math.min(1, 480 / video.videoWidth);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        const context = canvas.getContext('2d');
+        if (!context) {
+          finish(undefined, new Error('This browser could not prepare the cover image.'));
+          return;
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => finish(blob ?? undefined, blob ? undefined : new Error('This browser could not encode the cover image.')),
+          'image/jpeg',
+          0.78,
+        );
+      };
+
+      video.onerror = () => finish(undefined, new Error('This browser cannot read this video format for a cover image.'));
+      video.onloadedmetadata = () => {
+        if (Number.isFinite(video.duration) && video.duration > 0) {
+          video.currentTime = Math.min(0.1, video.duration / 2);
+        }
+      };
+      video.onseeked = captureFrame;
+      video.onloadeddata = () => {
+        if (!Number.isFinite(video.duration) || video.duration === 0) captureFrame();
+      };
+      video.src = objectUrl;
+      video.load();
+    });
+  } finally {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 export default function useGalleryController() {
@@ -43,10 +127,9 @@ export default function useGalleryController() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    const [videos, photos, detailsResult] = await Promise.all([
+    const [videos, photos] = await Promise.all([
       supabase.storage.from(MEDIA_BUCKET).list('videos', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } }),
       supabase.storage.from(MEDIA_BUCKET).list('photos', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } }),
-      supabase.from('portfolio_media').select('object_path, title, description'),
     ]);
     const failure = videos.error ?? photos.error;
     if (failure) {
@@ -54,11 +137,20 @@ export default function useGalleryController() {
       return;
     }
 
+    let detailsResult = await supabase.from('portfolio_media').select('object_path, title, description, poster_path');
+    let posterColumnAvailable = !detailsResult.error;
+    if (detailsResult.error?.message.includes('poster_path')) {
+      detailsResult = await supabase.from('portfolio_media').select('object_path, title, description');
+      posterColumnAvailable = false;
+    }
+
     const savedDetails = new Map(
       (detailsResult.data ?? []).map((row) => [row.object_path as string, row])
     );
     if (detailsResult.error) {
-      setError(`Could not load saved media details: ${detailsResult.error.message}. Run the latest supabase/setup.sql to create the portfolio_media table.`);
+      setError(`Could not load saved media details: ${detailsResult.error.message}. Run the latest supabase/setup.sql to create/update the portfolio_media table.`);
+    } else if (!posterColumnAvailable) {
+      setError('Photos can still be uploaded, but run the latest supabase/setup.sql to enable saved video cover images.');
     }
 
     const assets: UploadedMedia[] = [
@@ -70,9 +162,15 @@ export default function useGalleryController() {
         createdAt: file.created_at ?? '',
         ...(() => {
           const saved = savedDetails.get(`videos/${file.name}`);
+          const posterPath = typeof saved?.poster_path === 'string' ? saved.poster_path : null;
           return saved
-            ? { title: saved.title, description: saved.description }
-            : mediaDetails(file.metadata, file.name);
+            ? {
+                title: saved.title,
+                description: saved.description,
+                posterPath,
+                posterUrl: posterPath ? supabase.storage.from(MEDIA_BUCKET).getPublicUrl(posterPath).data.publicUrl : null,
+              }
+            : { ...mediaDetails(file.metadata, file.name), posterPath: null, posterUrl: null };
         })(),
       })),
       ...(photos.data ?? []).filter((file) => file.id || file.created_at || file.metadata).map((file) => ({
@@ -81,6 +179,8 @@ export default function useGalleryController() {
         path: `photos/${file.name}`,
         url: supabase.storage.from(MEDIA_BUCKET).getPublicUrl(`photos/${file.name}`).data.publicUrl,
         createdAt: file.created_at ?? '',
+        posterPath: null,
+        posterUrl: null,
         ...(() => {
           const saved = savedDetails.get(`photos/${file.name}`);
           return saved
@@ -90,7 +190,7 @@ export default function useGalleryController() {
       })),
     ];
     setUploaded(assets);
-    if (!detailsResult.error) setError('');
+    if (!detailsResult.error && posterColumnAvailable) setError('');
   }, []);
 
   useEffect(() => {
@@ -177,9 +277,11 @@ export default function useGalleryController() {
 
   function selectFile(kind: MediaKind, file?: File) {
     if (!file) return;
-    const validType = kind === 'video' ? file.type.startsWith('video/') : file.type.startsWith('image/');
+    const validType = kind === 'video' ? file.type.startsWith('video/') : !!imageContentType(file);
     if (!validType) {
-      setError(`Choose a valid ${kind} file.`);
+      setError(kind === 'video'
+        ? 'Choose a valid video file.'
+        : 'Choose a JPG, PNG, WebP, GIF, or AVIF image. HEIC/HEIF photos must be converted to JPG before uploading.');
       return;
     }
     if (file.size > 100 * 1024 * 1024) {
@@ -212,16 +314,45 @@ export default function useGalleryController() {
     setBusy(kind);
     setError('');
     setStatus('');
+    let posterBlob: Blob | null = null;
+    if (kind === 'video') {
+      try {
+        posterBlob = await createVideoPoster(file);
+      } catch (posterError) {
+        setBusy(null);
+        const reason = posterError instanceof Error ? ` ${posterError.message}` : '';
+        setError(`Could not create a cover image for this video.${reason} Try an MP4 video that plays on this device.`);
+        return;
+      }
+    }
+
     const safeName = file.name.replace(/[^\w.-]+/g, '-').slice(-120) || `upload-${Date.now()}`;
-    const path = `${kind === 'video' ? 'videos' : 'photos'}/${crypto.randomUUID()}-${safeName}`;
+    const mediaId = crypto.randomUUID();
+    const path = `${kind === 'video' ? 'videos' : 'photos'}/${mediaId}-${safeName}`;
+    const posterPath = posterBlob ? `posters/${mediaId}.jpg` : null;
+    if (posterBlob && posterPath) {
+      const { error: posterUploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(posterPath, posterBlob, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+      if (posterUploadError) {
+        setBusy(null);
+        setError(`Could not upload the video cover image: ${posterUploadError.message}. Check that the Storage policies in supabase/setup.sql are installed for the configured admin email.`);
+        return;
+      }
+    }
+
     const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, {
-      contentType: file.type,
+      contentType: kind === 'photo' ? imageContentType(file) : file.type,
       metadata: { title: draftTitle.trim(), description: draftDescription.trim() },
       upsert: false,
     });
     if (uploadError) {
+      const { error: cleanupError } = posterPath
+        ? await supabase.storage.from(MEDIA_BUCKET).remove([posterPath])
+        : { error: null };
       setBusy(null);
-      setError(`Upload failed: ${uploadError.message}. Check that the Storage policies in supabase/setup.sql are installed for the same admin email shown in .env.local, then sign out and sign in again.`);
+      setError(`Upload failed: ${uploadError.message}.${cleanupError ? ` Cover cleanup also failed: ${cleanupError.message}.` : ''} Check that the Storage policies in supabase/setup.sql are installed for the same admin email shown in .env.local, then sign out and sign in again.`);
       return;
     }
     const uploadedPath = path;
@@ -230,6 +361,8 @@ export default function useGalleryController() {
       name: path.slice(path.indexOf('/') + 1),
       path: uploadedPath,
       url: supabase.storage.from(MEDIA_BUCKET).getPublicUrl(uploadedPath).data.publicUrl,
+      posterPath,
+      posterUrl: posterPath ? supabase.storage.from(MEDIA_BUCKET).getPublicUrl(posterPath).data.publicUrl : null,
       createdAt: new Date().toISOString(),
       title: draftTitle.trim(),
       description: draftDescription.trim(),
@@ -239,10 +372,12 @@ export default function useGalleryController() {
       object_path: uploadedPath,
       title: newMedia.title,
       description: newMedia.description,
+      ...(posterPath ? { poster_path: posterPath } : {}),
       created_by: user?.id ?? null,
     }, { onConflict: 'object_path' });
     if (detailsError) {
-      const { error: cleanupError } = await supabase.storage.from(MEDIA_BUCKET).remove([uploadedPath]);
+      const cleanupPaths = [uploadedPath, ...(posterPath ? [posterPath] : [])];
+      const { error: cleanupError } = await supabase.storage.from(MEDIA_BUCKET).remove(cleanupPaths);
       setBusy(null);
       setError(`The file uploaded but its details could not be saved: ${detailsError.message}.${cleanupError ? ` Cleanup also failed: ${cleanupError.message}.` : ' The incomplete upload was removed.'} Run the latest supabase/setup.sql and retry.`);
       return;
@@ -304,7 +439,8 @@ export default function useGalleryController() {
     setBusy('delete');
     setError('');
     setStatus('');
-    const { error: deleteError } = await supabase.storage.from(MEDIA_BUCKET).remove([media.path]);
+    const pathsToDelete = [media.path, ...(media.posterPath ? [media.posterPath] : [])];
+    const { error: deleteError } = await supabase.storage.from(MEDIA_BUCKET).remove(pathsToDelete);
     if (deleteError) {
       setBusy(null);
       setError(`Could not delete media: ${deleteError.message}. Check the admin delete policy in supabase/setup.sql.`);

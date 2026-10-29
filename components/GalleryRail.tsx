@@ -54,7 +54,7 @@ export default function GalleryRail({
         <div className="flex items-center gap-4">
           {isAdmin && (
             <>
-              <input ref={fileInputRef} type="file" accept={kind === 'video' ? 'video/*' : 'image/*'} className="sr-only" onChange={handleFileChange} />
+              <input ref={fileInputRef} type="file" accept={kind === 'video' ? 'video/*' : 'image/jpeg,image/png,image/webp,image/gif,image/avif'} className="sr-only" onChange={handleFileChange} />
               <button type="button" className="ulink font-mono text-xs text-ac" disabled={busy !== null} onClick={() => fileInputRef.current?.click()}>
                 {busy === kind ? 'Uploading…' : `Add ${kind === 'video' ? 'videos' : 'photos'}`}
               </button>

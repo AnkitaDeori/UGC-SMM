@@ -54,6 +54,7 @@ create table if not exists public.portfolio_media (
   object_path text not null unique,
   title text not null,
   description text not null default '',
+  poster_path text,
   created_at timestamptz not null default now(),
   created_by uuid references auth.users(id) on delete set null,
   check (
@@ -61,6 +62,9 @@ create table if not exists public.portfolio_media (
     or (kind = 'photo' and object_path like 'photos/%')
   )
 );
+
+alter table public.portfolio_media
+ add column if not exists poster_path text;
 
 alter table public.portfolio_media enable row level security;
 
